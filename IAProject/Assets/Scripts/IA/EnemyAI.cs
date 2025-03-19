@@ -44,7 +44,15 @@ public class EnemyAi : MonoBehaviour
         yellow.SetActive(false);
         green.SetActive(false);
     }
+    private void OnTriggerStay(Collider other)
+    {
+        //raycast para el player
 
+        //guardar la ultima posicion del player y hacer que el enemigo patruye en esa posicion
+
+        //cambiar el estado de patrullaje por un collider, y llamarlo primero en el start y en el triggerstay cambiar a chaseplayer o a attack dependiendo de la distancia del player (si el raycast detecta al player lo chasea, sino sigue en patrol)
+
+    }
     private void Update()
     {
         textHealth.text = health.ToString();
