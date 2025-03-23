@@ -1,96 +1,101 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
-using Unity.UI;
 using TMPro;
 
 public class EnemyAi : MonoBehaviour
 {
-    public NavMeshAgent agent;
+    [Header("NavMesh & Target")]
+    private NavMeshAgent agent;
+    private Transform player;
 
-    public Transform player;
-
+    [Header("Layers")]
     public LayerMask whatIsGround, whatIsPlayer;
 
-    public float health = 100; 
-
+    [Header("Enemy Stats")]
+    public float health = 100f;
     public float fleeDistance = 100f;
+    private bool isDead = false;
 
-    //Patroling
-    public Vector3 walkPoint;
-    bool walkPointSet;
+    [Header("Patrolling")]
+    private Vector3 walkPoint;
+    private bool walkPointSet;
     public float walkPointRange;
 
-    //Attacking
-    public float timeBetweenAttacks;
-    bool alreadyAttacked;
+    [Header("Searching")]
+    private Vector3 lastSeenPosition;
+    private bool searchingForPlayer;
+    public float searchRadius = 5f;
 
-    //States
+    [Header("Combat")]
+    public float timeBetweenAttacks = 1f;
+    private bool alreadyAttacked;
     public float sightRange, attackRange;
-    public bool playerInSightRange, playerInAttackRange;
+    private bool playerInSightRange, playerInAttackRange;
 
-    public GameObject red;
-    public GameObject yellow;
-    public GameObject green;
-
+    [Header("UI & Status")]
+    public GameObject red, yellow, green;
     public TextMeshProUGUI textHealth;
 
     private void Awake()
     {
-        player = GameObject.Find("Player").transform;
         agent = GetComponent<NavMeshAgent>();
-        red.SetActive(false);
-        yellow.SetActive(false);
-        green.SetActive(false);
+        player = GameObject.FindWithTag("Player")?.transform;
+        SetEnemyState(null);
     }
-    private void OnTriggerStay(Collider other)
-    {
-        //raycast para el player
 
-        //guardar la ultima posicion del player y hacer que el enemigo patruye en esa posicion
-
-        //cambiar el estado de patrullaje por un collider, y llamarlo primero en el start y en el triggerstay cambiar a chaseplayer o a attack dependiendo de la distancia del player (si el raycast detecta al player lo chasea, sino sigue en patrol)
-
-    }
     private void Update()
     {
+        if (isDead) return; // Si está muerto, no hace nada
+
         textHealth.text = health.ToString();
+        UpdateState();
+    }
+
+    private void UpdateState()
+    {
+        if (isDead) return; // Evita que siga ejecutando lógica si está muerto
+
         playerInSightRange = Physics.CheckSphere(transform.position, sightRange, whatIsPlayer);
         playerInAttackRange = Physics.CheckSphere(transform.position, attackRange, whatIsPlayer);
 
+        if (playerInSightRange)
+        {
+            lastSeenPosition = player.position;
+            searchingForPlayer = false;
+        }
+
         if (health <= 50)
         {
-            Debug.Log("Estado: Huir");
-            red.SetActive(false);
-            yellow.SetActive(false);
-            green.SetActive(true);
+            SetEnemyState(green);
             Flee();
+        }
+        else if (!playerInSightRange && searchingForPlayer)
+        {
+            SetEnemyState(yellow);
+            SearchForPlayer();
         }
         else if (!playerInSightRange && !playerInAttackRange)
         {
-            Debug.Log("Estado: Patrullando");
-            red.SetActive(false);
-            yellow.SetActive(false);
-            green.SetActive(false);
+            SetEnemyState(null);
             Patroling();
         }
         else if (playerInSightRange && !playerInAttackRange)
         {
-            Debug.Log("Estado: Persiguiendo al jugador");
-            red.SetActive(false);
-            yellow.SetActive(true);
-            green.SetActive(false);
+            SetEnemyState(yellow);
             ChasePlayer();
         }
-        else if (playerInAttackRange && playerInSightRange)
+        else if (playerInAttackRange)
         {
-            Debug.Log("Estado: Atacando al jugador");
-            red.SetActive(true);
-            yellow.SetActive(false);
-            green.SetActive(false);
+            SetEnemyState(red);
             AttackPlayer();
         }
+    }
+
+    private void SetEnemyState(GameObject activeIndicator)
+    {
+        red.SetActive(activeIndicator == red);
+        yellow.SetActive(activeIndicator == yellow);
+        green.SetActive(activeIndicator == green);
     }
 
     private void Patroling()
@@ -98,41 +103,69 @@ public class EnemyAi : MonoBehaviour
         if (!walkPointSet) SearchWalkPoint();
 
         if (walkPointSet)
+        {
             agent.SetDestination(walkPoint);
+            if (Vector3.Distance(transform.position, walkPoint) < 1f)
+                walkPointSet = false;
+        }
+    }
 
-        Vector3 distanceToWalkPoint = transform.position - walkPoint;
+    private void SearchForPlayer()
+    {
+        if (!walkPointSet)
+        {
+            Vector3 randomPoint = lastSeenPosition + new Vector3(
+                Random.Range(-searchRadius, searchRadius),
+                0,
+                Random.Range(-searchRadius, searchRadius)
+            );
 
-        if (distanceToWalkPoint.magnitude < 1f)
-            walkPointSet = false;
+            if (Physics.Raycast(randomPoint, Vector3.down, 2f, whatIsGround))
+            {
+                walkPoint = randomPoint;
+                walkPointSet = true;
+            }
+        }
+
+        if (walkPointSet)
+        {
+            agent.SetDestination(walkPoint);
+            if (Vector3.Distance(transform.position, walkPoint) < 1f)
+            {
+                walkPointSet = false;
+                searchingForPlayer = false;
+            }
+        }
     }
 
     private void SearchWalkPoint()
     {
-        // Calculate random point in range
-        float randomZ = Random.Range(-walkPointRange, walkPointRange);
-        float randomX = Random.Range(-walkPointRange, walkPointRange);
+        Vector3 randomDirection = new Vector3(
+            Random.Range(-walkPointRange, walkPointRange),
+            0,
+            Random.Range(-walkPointRange, walkPointRange)
+        );
 
-        walkPoint = new Vector3(transform.position.x + randomX, transform.position.y, transform.position.z + randomZ);
+        walkPoint = transform.position + randomDirection;
 
-        if (Physics.Raycast(walkPoint, -transform.up, 2f, whatIsGround))
+        if (Physics.Raycast(walkPoint, Vector3.down, 2f, whatIsGround))
             walkPointSet = true;
     }
 
     private void ChasePlayer()
     {
-        agent.SetDestination(player.position);
+        if (player != null)
+            agent.SetDestination(player.position);
     }
 
     private void AttackPlayer()
     {
-        // Make sure enemy doesn't move
         agent.SetDestination(transform.position);
-
         transform.LookAt(player);
 
         if (!alreadyAttacked)
         {
-            Debug.Log("ATAQUEE");
+            Debug.Log("ATAQUE");
             alreadyAttacked = true;
             Invoke(nameof(ResetAttack), timeBetweenAttacks);
         }
@@ -145,31 +178,43 @@ public class EnemyAi : MonoBehaviour
 
     private void Flee()
     {
-        Vector3 directionToFlee = transform.position - player.position;
- 
-        Vector3 fleePosition = transform.position + directionToFlee.normalized * fleeDistance;
-        if (Physics.Raycast(fleePosition, -transform.up, 2f, whatIsGround))
-        {
-            agent.SetDestination(fleePosition);
-        }
-        else
-        {
-            fleePosition = transform.position + new Vector3(Random.Range(-fleeDistance, fleeDistance), 0, Random.Range(-fleeDistance, fleeDistance));
-            agent.SetDestination(fleePosition);
-        }
-    }
+        if (player == null) return;
 
+        Vector3 fleeDirection = (transform.position - player.position).normalized;
+        Vector3 fleePosition = transform.position + fleeDirection * fleeDistance;
+
+        if (!Physics.Raycast(fleePosition, Vector3.down, 2f, whatIsGround))
+        {
+            fleePosition = transform.position + new Vector3(
+                Random.Range(-fleeDistance, fleeDistance),
+                0,
+                Random.Range(-fleeDistance, fleeDistance)
+            );
+        }
+
+        agent.SetDestination(fleePosition);
+    }
 
     public void TakeDamage(int damage)
     {
+        if (isDead) return; // Si ya está muerto, no toma más daño
+
         health -= damage;
 
-        if (health <= 0) Invoke(nameof(DestroyEnemy), 0.5f);
+        if (health <= 0)
+        {
+            Die();
+        }
+        else if (!playerInSightRange)
+        {
+            searchingForPlayer = true;
+        }
     }
 
-    private void DestroyEnemy()
+    private void Die()
     {
-        Destroy(gameObject);
+        isDead = true;
+        agent.isStopped = true; 
+        Debug.Log("¡Enemigo ha muerto!");
     }
-
 }

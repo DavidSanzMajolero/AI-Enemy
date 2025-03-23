@@ -346,7 +346,7 @@ GameObject:
   - component: {fileID: 57078433}
   - component: {fileID: 57078432}
   - component: {fileID: 57078431}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Cube (5)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -719,7 +719,7 @@ GameObject:
   - component: {fileID: 235863881}
   - component: {fileID: 235863880}
   - component: {fileID: 235863879}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Cube (6)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1343,23 +1343,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8f95cc23b9a9a464fbc2a317a519e02b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  agent: {fileID: 1381348911}
-  player: {fileID: 1774817361}
   whatIsGround:
     serializedVersion: 2
     m_Bits: 8
   whatIsPlayer:
     serializedVersion: 2
     m_Bits: 64
+  whatIsObstacle:
+    serializedVersion: 2
+    m_Bits: 0
   health: 100
   fleeDistance: 100
-  walkPoint: {x: 0, y: 0, z: 0}
   walkPointRange: 5
+  searchRadius: 5
   timeBetweenAttacks: 0.5
   sightRange: 2
   attackRange: 1
-  playerInSightRange: 0
-  playerInAttackRange: 0
   red: {fileID: 1467293286}
   yellow: {fileID: 1521403492}
   green: {fileID: 1599800239}
@@ -1561,7 +1560,7 @@ GameObject:
   - component: {fileID: 1502824581}
   - component: {fileID: 1502824580}
   - component: {fileID: 1502824579}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Cube
   m_TagString: Untagged
   m_Icon: {fileID: 0}
